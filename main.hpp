@@ -25,7 +25,7 @@ struct Message {
     int procId;
     int procDest;
     int clock;
-    int type; // 0 normal e 1 solicitacao de recurso
+    int type; // 0 normal, 1 solicitacao de recurso e 2 ok
     std::string msg;
 
 
@@ -165,21 +165,19 @@ struct Client {
     }
 
     void request_resource(){
-        //Atualiza o clock?
-        c.clock++;
-
-        send_message(to_String(c.clock), 1);
+        send_message(to_String(c.clock), 1, -1);
         priority_queue<Message> next;
+
         while(oks < 2){
             Message m = c.receive_message();
 
-            if(m.msg == "ok"){
+            if((m.procDest == c.procId || m.procDest == - 1) && m.type == 2){
                 oks++;
             }
 
             if(m.type == 1 && c.procId != m.procId) {
                 if(m.clock < c.clock ||(m.clock == c.clock && m.procId < c.id)){
-                    send_message("ok", m.procId);
+                    send_message("ok", 2, m.procDest);
                 }
                 else{
                     next.push(m);
@@ -188,11 +186,15 @@ struct Client {
         }
 
         use_resource();
-        //envia o ok para outro usar o recurso
+        if(!next.empty()){
+            Message m = next.pop();
+            send_message("ok", 2, m.procId);
+
+        }
     }
 
     void dont_request_resource(){
-        send_message("ok", 0, );
+        send_message("ok", 2, -1);
     }
 
     void use_resouce(){
