@@ -16,6 +16,7 @@ using namespace std;
 struct Message {
     int procId;
     int clock;
+    int type; // 0 normal e 1 solicitacao de recurso
     std::string msg;
 
 
@@ -25,10 +26,11 @@ struct Message {
         msg = "";
     }
 
-    Message(int id, int c, string m) {
+    Message(int id, int c, string m, int t) {
         procId = id;
         clock = c;
         msg = m;
+        type = t;
     }
 
 
@@ -43,6 +45,8 @@ struct Message {
         ptr += sizeof(procId);
         memcpy((void *) ptr, (void *) &clock, sizeof(clock));
         ptr += sizeof(clock);
+        memcpy((void *) ptr, (void *) &type, sizeof(type));
+        ptr += sizeof(type);
         memcpy((void *) ptr, (void *) msg.c_str(), msg.size()+1);
 
         return dtg;
@@ -54,14 +58,10 @@ struct Message {
         ptr += sizeof(procId);
         memcpy((void *) &clock, (void *) ptr, sizeof(clock));
         ptr += sizeof(clock);
+        memcpy((void *) &type, (void *) ptr, sizeof(type));
+        ptr += sizeof(type);
         //strcpy(msg.c_str(), (void *) ptr);
         msg = msg.assign(ptr);
-    }
-};
-
-struct Compare {
-    bool operator()(const Message& a, const Message& b) {
-        return a.clock > b.clock;
     }
 };
 
@@ -70,17 +70,11 @@ struct Client {
     int clock;
     int serverSocketRcv;
     int serverSocketSend;
-    unordered_map<int, int> processo_clock;
-    priority_queue<Message, vector<Message>, Compare> queue;
 
-    Client(int id, int c, int processos) {
+    Client(int id, int c) {
         procId = id;
         clock = c;
 
-        for(int i = 1; i <= processos; i++){
-            if(i != procId)
-                processo_clock[i] = 0;
-        }
 
          // returns a file descriptor for an IPv4 UDP socket, or a negative value on failure
         serverSocketRcv = socket(AF_INET, SOCK_DGRAM, 0);
@@ -120,14 +114,12 @@ struct Client {
                             sizeof(localIface)) >= 0, "Setting local interface");
     }
 
-    void send_message(string text){
+    void send_message(string text, int type){
         //Atualizo o clock, monto a mensagem e coloco na fila
         clock++;
 
-        Message m (procId, clock, text);
-        if(text != "ack"){
-            queue.push(m);
-        }
+        Message m (procId, clock, text, type);
+
         sockaddr_in groupSock = {};  
         groupSock.sin_family = AF_INET;
         groupSock.sin_addr.s_addr = inet_addr("226.1.1.1");
@@ -154,32 +146,51 @@ struct Client {
         if(m.procId != procId){
             clock = max(m.clock, clock) + 1;
         }
-
-        if(m.procId != procId && m.msg != "ack"){
-            queue.push(m);
-            processo_clock[m.procId] = max(m.clock, processo_clock[m.procId]);
-        }
     
         return m;
     }
 
-    void delivery_message() {
-        Message m = queue.top();
+    void request_resource(){
+        //Atualiza o clock?
+        c.clock++;
 
-        bool msg_ready = true;
-        for(auto it = processo_clock.begin(); it != processo_clock.end(); ++it) {
-            if(m.clock > it->second){
-                msg_ready = false;
-            }	
+        send_request(c.clock, c.id);
+        Message m1 = c.receive_message();
+        Message m2 = c.receive_message();
+
+        int oks = 0;
+        if(m1.type == 1 || m1.clock < c.clock ||(m1.clock == c.clock && m1.procId < c.id)){
+            send_message("ok", m.procId);
+            ok++;
+        }
+        
+
+        while(oks < 2){
+            Message m = c.receive_message();
+
+            if(m.msg == "ok"){
+                oks++;
+            }
+
+            if(m.type == 1) {
+                if(m.clock < c.clock ||(m.clock == c.clock && m.procId < c.id)){
+                    send_message("ok", m.procId);
+                }
+                else{
+                    
+                }
+            }
         }
 
-        if(msg_ready){
-            queue.pop();
-            cout << "A mensagem foi entregue a aplicação: " << m.message_to_string() << endl;
-            return;
-        }
+        use_resource();
+    }
 
-        cout << "A mensagem não pode ser entregue a aplicação"  << endl;
+    void dont_request_resource(){
+        send_message("ok", 0);
+    }
+
+    void use_resouce(){
+        cout << "Recurso usado!" << endl;      
     }
 
     void show_infos(){

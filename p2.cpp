@@ -8,24 +8,20 @@
 #include <iostream>
 
 int main(){
+    Client c = Client(2, 0);
+
+
     while(true){
-        int processo;
-
-        cout << "Digite id desse processo: " << endl;
-        cin >> processo;
-
-        Client c = Client(processo, 0);
-
         int caso;
         cout << "Digite o caso de teste que você quer executar " << endl;
         cin >> caso;
 
         if(caso == 1){
-
+            c.dont_request_resource();
         }else if(caso == 2){
-
+            c.request_resource();
         }else if(caso == 3){
-            
+            c.request_resource();
         }
 
     }
