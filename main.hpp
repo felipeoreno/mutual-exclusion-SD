@@ -13,8 +13,17 @@
 
 using namespace std;
 
+struct Compare {
+    bool operator()(const Message& a, const Message& b) {
+        if(a.clock != b.clock)
+            return a.clock > b.clock;
+        return a.procId > b.procId;
+    }
+};
+
 struct Message {
     int procId;
+    int procDest;
     int clock;
     int type; // 0 normal e 1 solicitacao de recurso
     std::string msg;
@@ -26,8 +35,9 @@ struct Message {
         msg = "";
     }
 
-    Message(int id, int c, string m, int t) {
+    Message(int id, int dest, int c, string m, int t) {
         procId = id;
+        procDest = dest;
         clock = c;
         msg = m;
         type = t;
@@ -43,6 +53,8 @@ struct Message {
         char *ptr = (char *) dtg.data();
         memcpy((void *) ptr, (void *) &procId, sizeof(procId));
         ptr += sizeof(procId);
+        memcpy((void *) ptr, (void *) &procDest, sizeof(procDest));
+        ptr += sizeof(procDest);
         memcpy((void *) ptr, (void *) &clock, sizeof(clock));
         ptr += sizeof(clock);
         memcpy((void *) ptr, (void *) &type, sizeof(type));
@@ -56,6 +68,8 @@ struct Message {
         char *ptr = (char *) dtg.data();
         memcpy((void *) &procId, (void *) ptr, sizeof(procId));
         ptr += sizeof(procId);
+        memcpy((void *) &procDest, (void *) ptr, sizeof(procDest));
+        ptr += sizeof(procDest);
         memcpy((void *) &clock, (void *) ptr, sizeof(clock));
         ptr += sizeof(clock);
         memcpy((void *) &type, (void *) ptr, sizeof(type));
@@ -114,11 +128,11 @@ struct Client {
                             sizeof(localIface)) >= 0, "Setting local interface");
     }
 
-    void send_message(string text, int type){
+    void send_message(string text, int type, int procDest){
         //Atualizo o clock, monto a mensagem e coloco na fila
         clock++;
 
-        Message m (procId, clock, text, type);
+        Message m (procId, procDest, clock, text, type);
 
         sockaddr_in groupSock = {};  
         groupSock.sin_family = AF_INET;
@@ -154,17 +168,8 @@ struct Client {
         //Atualiza o clock?
         c.clock++;
 
-        send_request(c.clock, c.id);
-        Message m1 = c.receive_message();
-        Message m2 = c.receive_message();
-
-        int oks = 0;
-        if(m1.type == 1 || m1.clock < c.clock ||(m1.clock == c.clock && m1.procId < c.id)){
-            send_message("ok", m.procId);
-            ok++;
-        }
-        
-
+        send_message(to_String(c.clock), 1);
+        priority_queue<Message> next;
         while(oks < 2){
             Message m = c.receive_message();
 
@@ -172,21 +177,22 @@ struct Client {
                 oks++;
             }
 
-            if(m.type == 1) {
+            if(m.type == 1 && c.procId != m.procId) {
                 if(m.clock < c.clock ||(m.clock == c.clock && m.procId < c.id)){
                     send_message("ok", m.procId);
                 }
                 else{
-                    
+                    next.push(m);
                 }
             }
         }
 
         use_resource();
+        //envia o ok para outro usar o recurso
     }
 
     void dont_request_resource(){
-        send_message("ok", 0);
+        send_message("ok", 0, );
     }
 
     void use_resouce(){
