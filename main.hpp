@@ -13,13 +13,7 @@
 
 using namespace std;
 
-struct Compare {
-    bool operator()(const Message& a, const Message& b) {
-        if(a.clock != b.clock)
-            return a.clock > b.clock;
-        return a.procId > b.procId;
-    }
-};
+
 
 struct Message {
     int procId;
@@ -43,9 +37,10 @@ struct Message {
         type = t;
     }
 
+    
 
     string message_to_string(){
-        return to_string(procId) + "-"  + to_string(clock) + "-" + msg;
+        return to_string(procId) + "-"  + to_string(clock) + "-" + msg + "-" + to_string(procDest);
     }
 
     std::array<char, 1024> to_datagram() {
@@ -76,6 +71,14 @@ struct Message {
         ptr += sizeof(type);
         //strcpy(msg.c_str(), (void *) ptr);
         msg = msg.assign(ptr);
+    }
+};
+
+struct Compare {
+    bool operator()(const Message& a, const Message& b) {
+        if(a.clock != b.clock)
+            return a.clock > b.clock;
+        return a.procId > b.procId;
     }
 };
 
@@ -129,7 +132,7 @@ struct Client {
     }
 
     void send_message(string text, int type, int procDest){
-        //Atualizo o clock, monto a mensagem e coloco na fila
+        //Atualizo o clock, monto a mensagem
         clock++;
 
         Message m (procId, procDest, clock, text, type);
@@ -164,20 +167,26 @@ struct Client {
         return m;
     }
 
+    void use_resource(){
+        cout << "Recurso usado!" << endl;      
+    }
+
     void request_resource(){
-        send_message(to_String(c.clock), 1, -1);
-        priority_queue<Message> next;
-
+        send_message(to_string(clock), 1, -1);
+        int request_clock = clock;
+        priority_queue<Message, vector<Message>, Compare> next;
+        int oks = 0;
         while(oks < 2){
-            Message m = c.receive_message();
+            Message m = receive_message();
 
-            if((m.procDest == c.procId || m.procDest == - 1) && m.type == 2){
+            if(m.procId != procId && (m.procDest == procId || m.procDest == -1) && m.type == 2){
                 oks++;
+                cout << "P" << procId << " recebeu OK de P" << m.procId << " | oks = " << oks << endl;
             }
 
-            if(m.type == 1 && c.procId != m.procId) {
-                if(m.clock < c.clock ||(m.clock == c.clock && m.procId < c.id)){
-                    send_message("ok", 2, m.procDest);
+            if(m.type == 1 && procId != m.procId) {
+                if(m.clock < request_clock ||(m.clock == request_clock && m.procId < procId)){
+                    send_message("ok", 2, m.procId);
                 }
                 else{
                     next.push(m);
@@ -186,8 +195,10 @@ struct Client {
         }
 
         use_resource();
-        if(!next.empty()){
-            Message m = next.pop();
+        cout << "P" << procId << " conseguiu os 2 OKs!"  << "em " << to_string(clock) << endl;
+        while(!next.empty()){
+            Message m = next.top();
+            next.pop();
             send_message("ok", 2, m.procId);
 
         }
@@ -197,23 +208,13 @@ struct Client {
         send_message("ok", 2, -1);
     }
 
-    void use_resouce(){
-        cout << "Recurso usado!" << endl;      
-    }
+    
 
     void show_infos(){
-        auto copia = queue;
-        int i = 0;
         cout << "clock: " << clock << endl;
-        cout << "fila: " << endl;
-        while (!copia.empty()) {
-            auto msg = copia.top();
-            cout << i << msg.message_to_string() << endl;
-            copia.pop();
-        }
-        i++;
     }
 };
+
 
 
 

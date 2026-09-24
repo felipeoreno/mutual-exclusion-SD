@@ -8,7 +8,7 @@
 #include <iostream>
 
 int main(){
-    Client c = Client(1, 0);
+    Client c = Client(3, 0);
 
 
     while(true){
