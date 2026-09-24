@@ -172,7 +172,9 @@ struct Client {
     }
 
     void use_resource(){
-        cout << "Recurso usado!" << endl;      
+        FILE* out = fopen("output.txt", "a");
+        fprintf(out, "%d;", procId);
+        fclose(out); 
     }
 
     void request_resource(){
@@ -209,7 +211,11 @@ struct Client {
     }
 
     void dont_request_resource(){
-        send_message("ok", OK, -1);
+        while(true){
+            Message m = receive_message();
+            if(m.type == REQ)
+                send_message("ok", OK, m.procDest);
+        }
     }
 
     
