@@ -20,6 +20,7 @@ int main(){
             c.dont_request_resource();
         }else if(caso == 2){
             c.dont_request_resource();
+            c.dont_request_resource();
         }else if(caso == 3){
             c.request_resource();
         }

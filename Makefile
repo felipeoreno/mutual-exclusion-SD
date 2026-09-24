@@ -1,5 +1,5 @@
 CXX=g++
-CXXFLAGS=-I. -Wall -Wextra -O3
+CXXFLAGS=-I. -Wall -Wextra -O0 -ggdb3
 DEPS=main.hpp
 
 all: p1 p2 p3

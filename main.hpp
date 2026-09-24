@@ -201,9 +201,11 @@ struct Client {
     }
 
     void dont_request_resource(){
-        Message m = receive_message();
-        if(m.type == REQ)
-            send_message("ok", OK, m.procId);
+        Message m;
+        do {
+            m = receive_message();
+        } while(m.type != REQ);
+        send_message("ok", OK, m.procId);
     }
 
     void use_resource(){
