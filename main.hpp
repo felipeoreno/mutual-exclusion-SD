@@ -195,7 +195,7 @@ struct Client {
         }
 
         use_resource();
-        cout << "P" << procId << " conseguiu os 2 OKs!"  << "em " << to_string(clock) << endl;
+        cout << "P" << procId << " conseguiu os 2 OKs!"  << "em " << to_string(clock) << " de clock" << endl;
         while(!next.empty()){
             Message m = next.top();
             next.pop();
