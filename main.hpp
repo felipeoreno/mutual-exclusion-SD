@@ -13,6 +13,10 @@
 
 using namespace std;
 
+#define NORMAL 0
+#define REQ 1
+#define OK 2
+
 
 
 struct Message {
@@ -172,21 +176,21 @@ struct Client {
     }
 
     void request_resource(){
-        send_message(to_string(clock), 1, -1);
+        send_message(to_string(clock), REQ, -1);
         int request_clock = clock;
         priority_queue<Message, vector<Message>, Compare> next;
         int oks = 0;
         while(oks < 2){
             Message m = receive_message();
 
-            if(m.procId != procId && (m.procDest == procId || m.procDest == -1) && m.type == 2){
+            if(m.procId != procId && (m.procDest == procId || m.procDest == -1) && m.type == OK){
                 oks++;
                 cout << "P" << procId << " recebeu OK de P" << m.procId << " | oks = " << oks << endl;
             }
 
-            if(m.type == 1 && procId != m.procId) {
+            if(m.type == REQ && procId != m.procId) {
                 if(m.clock < request_clock ||(m.clock == request_clock && m.procId < procId)){
-                    send_message("ok", 2, m.procId);
+                    send_message("ok", OK, m.procId);
                 }
                 else{
                     next.push(m);
@@ -199,13 +203,13 @@ struct Client {
         while(!next.empty()){
             Message m = next.top();
             next.pop();
-            send_message("ok", 2, m.procId);
+            send_message("ok", OK, m.procId);
 
         }
     }
 
     void dont_request_resource(){
-        send_message("ok", 2, -1);
+        send_message("ok", OK, -1);
     }
 
     
