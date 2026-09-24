@@ -13,13 +13,17 @@
 
 using namespace std;
 
-struct Compare {
+#define NORMAL 0
+#define REQ 1
+#define OK 2
+
+/*struct Compare {
     bool operator()(const Message& a, const Message& b) {
         if(a.clock != b.clock)
             return a.clock > b.clock;
         return a.procId > b.procId;
     }
-};
+};*/
 
 struct Message {
     int procId;
@@ -76,6 +80,10 @@ struct Message {
         ptr += sizeof(type);
         //strcpy(msg.c_str(), (void *) ptr);
         msg = msg.assign(ptr);
+    }
+
+    friend bool operator<(const Message& a, const Message& b) {
+        return tie(a.clock, a.procId) < tie(b.clock, b.procId);
     }
 };
 
@@ -165,19 +173,18 @@ struct Client {
     }
 
     void request_resource(){
-        send_message(to_String(c.clock), 1, -1);
+        send_message(to_string(clock), REQ, -1);
         priority_queue<Message> next;
 
+        int oks = 0;
         while(oks < 2){
-            Message m = c.receive_message();
+            Message m = receive_message();
 
-            if((m.procDest == c.procId || m.procDest == - 1) && m.type == 2){
+            if(m.procDest == procId && m.type == OK){
                 oks++;
-            }
-
-            if(m.type == 1 && c.procId != m.procId) {
-                if(m.clock < c.clock ||(m.clock == c.clock && m.procId < c.id)){
-                    send_message("ok", 2, m.procDest);
+            } else if(m.type == REQ && procId != m.procId) {
+                if(m.clock < clock || (m.clock == clock && m.procId < procId)){
+                    send_message("ok", OK, m.procId);
                 }
                 else{
                     next.push(m);
@@ -187,27 +194,31 @@ struct Client {
 
         use_resource();
         if(!next.empty()){
-            Message m = next.pop();
-            send_message("ok", 2, m.procId);
-
+            Message m = next.top();
+            send_message("ok", OK, m.procId);
+            next.pop();
         }
     }
 
     void dont_request_resource(){
-        send_message("ok", 2, -1);
+        Message m = receive_message();
+        if(m.type == REQ)
+            send_message("ok", OK, m.procId);
     }
 
-    void use_resouce(){
-        cout << "Recurso usado!" << endl;      
+    void use_resource(){
+        FILE* out = fopen("output.txt", "a");
+        fprintf(out, "%d;", procId);
+        fclose(out);
     }
 
     void show_infos(){
-        auto copia = queue;
+        queue<Message> copia;
         int i = 0;
         cout << "clock: " << clock << endl;
         cout << "fila: " << endl;
         while (!copia.empty()) {
-            auto msg = copia.top();
+            auto msg = copia.front();
             cout << i << msg.message_to_string() << endl;
             copia.pop();
         }
